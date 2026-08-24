@@ -50,10 +50,10 @@ un feriado que no existe. Para relajarlo, `ESTADOS_IMPRIMIBLES` en
 | Días inhábiles | Días corridos del período **menos** los hábiles |
 | Días progresivos | `employee_id.l10n_cl_progressive_vacation_days` |
 | Días disponibles | Asignaciones validadas menos ausencias validadas del mismo tipo, sin contar esta |
-| Período de vacaciones | Fechas de las asignaciones validadas de ese tipo |
-| Observaciones | `notes`, y si está vacío la descripción de la solicitud |
+| Período de vacaciones | `display_name` — el nombre con que Odoo identifica la solicitud |
+| Observaciones | `name` — la nota de la solicitud |
 
-Tres de estos merecen una explicación, porque son decisiones y no lecturas.
+Cinco de estos merecen una explicación, porque son decisiones y no lecturas.
 
 ### Los días inhábiles se derivan, no se cuentan aparte
 
@@ -73,6 +73,20 @@ donde está sólo lo llena para el tipo llamado exactamente
 
 Es el saldo **sin contar esta solicitud** — el mismo criterio que el formulario.
 
+### El período repite lo que dice la ficha, a propósito
+
+Es el `display_name` completo de la solicitud —trabajador, tipo de ausencia, duración y
+rango— y no sólo las fechas. Así el recuadro dice **lo mismo que la pantalla, palabra por
+palabra**, y no hay dos redacciones del mismo período que puedan divergir. Ocupa dos
+renglones y el resto de la hoja lo absorbe.
+
+### Una nota que es sólo puntuación no se imprime
+
+`texto_util()` descarta lo que no tiene más que puntos y guiones — `.-` es lo que aparece en
+varias solicitudes de la base, escrito para poder guardar el formulario. En el recuadro de
+un documento controlado eso se lee como un defecto, no como una observación. Si se prefiere
+imprimirlo tal cual, es sacar esa llamada en `_papeleta_datos()`.
+
 ### Los campos opcionales no se dan por sentados
 
 `l10n_cl_progressive_vacation_days` y `l10n_cl_activity_description` vienen de la
@@ -91,10 +105,10 @@ sección `#333333` y rótulos `#f2f2f2`. Las medidas del CSS salen de medir el P
 original, y por eso están en `pt` y en porcentaje de ese ancho útil.
 
 **Es siempre de una hoja**, y su propia cabecera lo declara (*Página 1 de 1*).
-Lo que sostiene esa afirmación es el recorte de las observaciones a
-`LARGO_OBSERVACIONES` caracteres, no el alto del recuadro: una celda de tabla
-ignora `overflow` y crece igual, empujando el documento a una segunda hoja que la
-cabecera dice que no existe.
+Lo que sostiene esa afirmación es el recorte de los dos campos de largo libre
+—`LARGO_OBSERVACIONES` y `LARGO_PERIODO`—, no el alto de los recuadros: una celda
+de tabla ignora `overflow` y crece igual, empujando el documento a una segunda
+hoja que la cabecera dice que no existe.
 
 ### Dos cosas que se ven raras en el código y están así a propósito
 

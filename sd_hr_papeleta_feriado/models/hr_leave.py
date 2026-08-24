@@ -38,6 +38,11 @@ _SOLO_RELLENO = ".,-–—_/*· \t\r\n"
 #: afirmacion.
 LARGO_OBSERVACIONES = 220
 
+#: Lo que entra en el renglon del periodo sin pasar de dos lineas. El
+#: `display_name` lo arma Odoo con el nombre del trabajador adentro, asi que un
+#: nombre largo puede estirarlo; el tope evita que un caso raro empuje la hoja.
+LARGO_PERIODO = 140
+
 
 def formatear_rut(valor):
     """RUT chileno con puntos y guion, venga con o sin ellos.
@@ -157,20 +162,15 @@ class HrLeave(models.Model):
         return sum(asignaciones.mapped("number_of_days")) - sum(tomadas.mapped("number_of_days"))
 
     def _papeleta_periodo(self):
-        """El periodo al que se imputa el feriado, segun las asignaciones.
+        """El periodo, tal como Odoo nombra la solicitud.
 
-        Una asignacion sin fecha de termino es una vigencia abierta, no un
-        error: en ese caso se dice desde cuando corre y no se inventa un cierre.
+        Es el `display_name` completo —trabajador, tipo de ausencia, duracion y
+        rango— y no solo las fechas: asi el recuadro dice lo MISMO que la ficha
+        en pantalla, palabra por palabra, y no hay dos redacciones del mismo
+        periodo que puedan divergir.
         """
         self.ensure_one()
-        asignaciones = self._papeleta_asignaciones()
-        desde = [a.date_from for a in asignaciones if a.date_from]
-        if not desde:
-            return ""
-        hasta = [a.date_to for a in asignaciones]
-        if hasta and all(hasta):
-            return "%s al %s" % (formatear_fecha(min(desde)), formatear_fecha(max(hasta)))
-        return _("Desde el %s") % formatear_fecha(min(desde))
+        return recortar(self.display_name, LARGO_PERIODO)
 
     def _papeleta_dias_progresivos(self):
         """Dias progresivos del art. 68, si la localizacion chilena los lleva."""
@@ -242,7 +242,7 @@ class HrLeave(models.Model):
             "dias_progresivos": formatear_dias(solicitud._papeleta_dias_progresivos()),
             "dias_disponibles": formatear_dias(solicitud._papeleta_dias_disponibles()),
             "periodo": solicitud._papeleta_periodo(),
-            "observaciones": recortar(
-                texto_util(solicitud.notes) or texto_util(solicitud.name)
-            ),
+            # La nota de la solicitud (`name`), que es lo que se escribe en el
+            # formulario. `notes` existe pero en esta base esta siempre vacio.
+            "observaciones": recortar(texto_util(solicitud.name)),
         }

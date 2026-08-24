@@ -39,7 +39,8 @@
           del mismo tipo, sin contar esta solicitud.
         * Dias progresivos: `l10n_cl_progressive_vacation_days` del empleado,
           si la localizacion chilena de RRHH esta instalada.
-        * Periodo de vacaciones: fechas de las asignaciones del tipo.
+        * Periodo de vacaciones: el `display_name` de la solicitud.
+        * Observaciones: la nota de la solicitud (`name`).
     """,
     "author": "SimpleDigital.cl",
     "website": "https://simpledigital.cl",
