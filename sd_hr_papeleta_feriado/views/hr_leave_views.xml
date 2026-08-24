@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        Se hereda la vista BASE (`hr_leave_view_form`) y no la de aprobacion:
+        `hr_leave_view_form_manager` es una vista primaria que se apoya en esta,
+        asi que extendiendo la base el boton aparece en las dos —la del
+        trabajador y la de «Todo el tiempo personal»— con una sola herencia.
+    -->
+    <record id="hr_leave_view_form_papeleta" model="ir.ui.view">
+        <field name="name">hr.leave.view.form.papeleta.feriado</field>
+        <field name="model">hr.leave</field>
+        <field name="inherit_id" ref="hr_holidays.hr_leave_view_form"/>
+        <field name="arch" type="xml">
+            <!-- Un campo que gobierna un modificador tiene que estar declarado
+                 EN la vista, o la instalacion aborta. -->
+            <xpath expr="//header" position="before">
+                <field name="puede_imprimir_papeleta" invisible="1"/>
+            </xpath>
+            <xpath expr="//header" position="inside">
+                <button name="action_imprimir_papeleta"
+                        type="object"
+                        string="Papeleta de vacaciones"
+                        title="Descargar el Comprobante de Feriado Legal en PDF"
+                        invisible="not puede_imprimir_papeleta"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>
