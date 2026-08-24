@@ -1,0 +1,329 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        El documento replica el formulario controlado PRORRHH004 de Gestion de
+        Personas. Las medidas salen de medir el PDF original (Carta, 612x792 pt,
+        margenes de 72 pt, ancho util 468 pt) y por eso los anchos van en
+        porcentaje de ese ancho util y las alturas en pt.
+
+        Se llama a `web.html_container` y NO a `web.basic_layout` a proposito:
+        basic_layout mete todo dentro de un unico `div.article`, y el pie de
+        pagina tiene que quedar FUERA de el para que Odoo lo reconozca como
+        `div.footer` y se lo pase a wkhtmltopdf como pie real. Dentro del
+        article seria un parrafo mas, pegado al contenido en vez de al borde.
+    -->
+    <template id="report_papeleta_feriado">
+        <!-- El layout de reportes pone `container` en el body, que en Bootstrap
+             tiene ancho maximo por breakpoint y estrangularia la hoja. -->
+        <t t-set="full_width" t-value="True"/>
+        <t t-call="web.html_container">
+            <t t-foreach="papeletas" t-as="papeleta">
+                <t t-call="sd_hr_papeleta_feriado.report_papeleta_feriado_document"/>
+            </t>
+        </t>
+    </template>
+
+    <template id="report_papeleta_feriado_document">
+        <div class="article papeleta"
+             t-att-data-oe-model="'hr.leave'"
+             t-att-data-oe-id="papeleta['id']"
+             t-attf-style="#{'' if papeleta_last else 'page-break-after: always;'}">
+
+            <style>
+                /* El body del layout de reportes trae paddings y ancho maximo
+                   propios; aca se neutralizan para que el ancho util sea
+                   exactamente el que dejan los margenes del formato de papel. */
+                body, #wrapwrap, main, .article.papeleta {
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    width: 100% !important;
+                    max-width: none !important;
+                }
+                .papeleta {
+                    font-family: "Carlito", "Calibri", "Liberation Sans", Arial, sans-serif;
+                    font-size: 9pt;
+                    line-height: 1.25;
+                    color: #1a1a1a;
+                }
+                .papeleta table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    table-layout: fixed;
+                }
+                .papeleta td { vertical-align: middle; }
+                .papeleta .b { font-weight: bold; }
+
+                /* --- cabecera: emisor + fecha de emision + pagina --- */
+                .pap-cabecera td { border: 0.5pt solid #808080; padding: 4pt 6pt; }
+                .pap-emisor { vertical-align: top; padding-top: 6pt !important; font-size: 8pt; }
+                .pap-emisor .pap-empresa {
+                    font-size: 11pt;
+                    font-weight: bold;
+                    padding-bottom: 3pt;
+                }
+                .pap-emisor div { line-height: 1.28; }
+                .pap-rotulo-cab {
+                    background: #f2f2f2;
+                    font-size: 8pt;
+                    font-weight: bold;
+                }
+                .pap-valor-cab { font-size: 8pt; }
+
+                /* --- titulo --- */
+                .pap-titulo {
+                    text-align: center;
+                    font-size: 15pt;
+                    font-weight: bold;
+                    letter-spacing: 1pt;
+                    margin-top: 11pt;
+                }
+                .pap-folio {
+                    text-align: center;
+                    font-size: 10pt;
+                    font-weight: bold;
+                    margin-top: 2.5pt;
+                    padding-bottom: 2.5pt;
+                    border-bottom: 1pt solid #333333;
+                }
+
+                /* --- barra de seccion --- */
+                .pap-seccion {
+                    background: #333333;
+                    color: #ffffff;
+                    font-size: 10pt;
+                    font-weight: bold;
+                    letter-spacing: 1pt;
+                    /* 11 + 3.6 + 3.6 = los 18,2 pt de alto que mide el modelo.
+                       La altura se fija por `line-height` y no por `height`
+                       porque un `div` con `height` no reserva el relleno. */
+                    line-height: 11pt;
+                    padding: 3.6pt 7pt;
+                    margin-top: 10pt;
+                    margin-bottom: 3pt;
+                }
+
+                /* --- tablas de campos --- */
+                /* La fila mide 23,7 pt en el modelo. `height` sobre una celda
+                   es el alto del CONTENIDO: el relleno se suma aparte, asi que
+                   va 23,7 - 2 - 2. Poner 23,7 directo da filas de 27,7 y la
+                   hoja entera se corre casi 70 pt hacia abajo. */
+                .pap-campos td {
+                    border: 0.5pt solid #bfbfbf;
+                    height: 19.7pt;
+                    padding: 2pt 6pt;
+                }
+                .pap-campos .pap-rotulo {
+                    background: #f2f2f2;
+                    font-weight: bold;
+                }
+                /* El alto del recuadro. Que la observacion QUEPA no lo
+                   garantiza este alto sino el recorte del dato (ver
+                   LARGO_OBSERVACIONES en models/hr_leave.py): una celda de
+                   tabla ignora `overflow` y crece igual. */
+                .pap-campos .pap-observaciones {
+                    height: 45.6pt;
+                    vertical-align: top;
+                    padding-top: 5pt;
+                }
+                .pap-campos .pap-rotulo-obs {
+                    background: #f2f2f2;
+                    font-weight: bold;
+                    height: 45.6pt;
+                    vertical-align: middle;
+                }
+
+                /* --- declaracion --- */
+                .pap-declaracion {
+                    border: 0.5pt solid #bfbfbf;
+                    padding: 4.5pt 8pt 6pt;
+                    margin-top: 4.4pt;
+                    text-align: justify;
+                    /* 9 x 1,52 = 13,7 pt, el interlineado del modelo. */
+                    line-height: 1.52;
+                }
+                .pap-emision-pie {
+                    margin-top: 8pt;
+                    font-size: 9pt;
+                }
+                .pap-emision-pie .pap-linea {
+                    display: inline-block;
+                    width: 200pt;
+                    border-bottom: 0.75pt solid #333333;
+                    margin-left: 6pt;
+                    padding-bottom: 1pt;
+                }
+
+                /* --- firmas --- */
+                .pap-firmas { margin-top: 35pt; }
+                .pap-firmas td { padding: 0; }
+                .pap-firmas .pap-firma {
+                    border-top: 0.75pt solid #1a1a1a;
+                    padding-top: 5pt;
+                    text-align: center;
+                    font-size: 9pt;
+                    font-weight: bold;
+                    letter-spacing: 0.6pt;
+                }
+                .pap-firmas .pap-hueco { border: 0; }
+            </style>
+
+            <!-- 1 · cabecera -->
+            <table class="pap-cabecera">
+                <colgroup>
+                    <col style="width: 46.56%;"/>
+                    <col style="width: 17.65%;"/>
+                    <col style="width: 35.79%;"/>
+                </colgroup>
+                <tbody>
+                    <tr>
+                        <td class="pap-emisor" rowspan="2">
+                            <div class="pap-empresa" t-out="papeleta['empresa']"/>
+                            <div t-if="papeleta['empresa_rut']">
+                                <span class="b">R.U.T.</span>
+                                <span t-out="papeleta['empresa_rut']"/>
+                            </div>
+                            <div t-if="papeleta['empresa_direccion']"
+                                 t-out="papeleta['empresa_direccion']"/>
+                            <div t-if="papeleta['empresa_giro']">
+                                <span class="b">Giro</span>
+                                <span t-out="papeleta['empresa_giro']"/>
+                            </div>
+                        </td>
+                        <td class="pap-rotulo-cab">Fecha de emisión</td>
+                        <td class="pap-valor-cab" t-out="papeleta['emision']"/>
+                    </tr>
+                    <tr>
+                        <td class="pap-rotulo-cab">Página</td>
+                        <td class="pap-valor-cab" t-out="papeleta['pagina']"/>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- 2 · titulo y folio -->
+            <div class="pap-titulo">COMPROBANTE DE FERIADO LEGAL</div>
+            <div class="pap-folio">
+                N° <span t-out="papeleta['folio']"/> / <span t-out="papeleta['anio']"/>
+            </div>
+
+            <!-- 3 · identificacion del trabajador -->
+            <div class="pap-seccion">1 · IDENTIFICACIÓN DEL TRABAJADOR</div>
+            <table class="pap-campos">
+                <colgroup>
+                    <col style="width: 18.12%;"/>
+                    <col style="width: 13.91%;"/>
+                    <col style="width: 17.97%;"/>
+                    <col style="width: 18.12%;"/>
+                    <col style="width: 31.88%;"/>
+                </colgroup>
+                <tbody>
+                    <tr>
+                        <td class="pap-rotulo" colspan="2">Nombre del trabajador</td>
+                        <td colspan="3" t-out="papeleta['trabajador']"/>
+                    </tr>
+                    <tr>
+                        <td class="pap-rotulo">RUT</td>
+                        <td colspan="2" t-out="papeleta['trabajador_rut']"/>
+                        <td class="pap-rotulo">Cargo</td>
+                        <td t-out="papeleta['trabajador_cargo']"/>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- 4 · detalle del feriado -->
+            <div class="pap-seccion">2 · DETALLE DEL FERIADO</div>
+            <table class="pap-campos">
+                <colgroup>
+                    <col style="width: 18.12%;"/>
+                    <col style="width: 13.91%;"/>
+                    <col style="width: 17.97%;"/>
+                    <col style="width: 18.12%;"/>
+                    <col style="width: 31.88%;"/>
+                </colgroup>
+                <tbody>
+                    <tr>
+                        <td class="pap-rotulo">Fecha de inicio</td>
+                        <td colspan="2" t-out="papeleta['fecha_inicio']"/>
+                        <td class="pap-rotulo">Fecha de término</td>
+                        <td t-out="papeleta['fecha_termino']"/>
+                    </tr>
+                    <tr>
+                        <td class="pap-rotulo">Días hábiles</td>
+                        <td colspan="2" t-out="papeleta['dias_habiles']"/>
+                        <td class="pap-rotulo">Días inhábiles</td>
+                        <td t-out="papeleta['dias_inhabiles']"/>
+                    </tr>
+                    <tr>
+                        <td class="pap-rotulo">Días progresivos</td>
+                        <td colspan="2" t-out="papeleta['dias_progresivos']"/>
+                        <td class="pap-rotulo">Días disponibles</td>
+                        <td t-out="papeleta['dias_disponibles']"/>
+                    </tr>
+                    <tr>
+                        <td class="pap-rotulo" colspan="2">Período de vacaciones</td>
+                        <td colspan="3" t-out="papeleta['periodo']"/>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- 5 · observaciones -->
+            <div class="pap-seccion">3 · OBSERVACIONES</div>
+            <table class="pap-campos">
+                <colgroup>
+                    <col style="width: 32.03%;"/>
+                    <col style="width: 67.97%;"/>
+                </colgroup>
+                <tbody>
+                    <tr>
+                        <td class="pap-rotulo-obs">Observaciones</td>
+                        <td class="pap-observaciones" t-out="papeleta['observaciones']"/>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- 6 · declaracion y firmas -->
+            <div class="pap-seccion">4 · DECLARACIÓN Y FIRMAS</div>
+            <div class="pap-declaracion">
+                Declaro haber tomado conocimiento del período de feriado legal detallado en el
+                presente comprobante, de acuerdo con lo dispuesto en los artículos 67 y siguientes
+                del Código del Trabajo, y manifiesto mi conformidad con la información aquí
+                registrada.
+            </div>
+
+            <div class="pap-emision-pie">
+                <span class="b">Fecha de emisión:</span>
+                <span class="pap-linea" t-out="papeleta['emision']"/>
+            </div>
+
+            <table class="pap-firmas">
+                <colgroup>
+                    <col style="width: 43.8%;"/>
+                    <col style="width: 12.4%;"/>
+                    <col style="width: 43.8%;"/>
+                </colgroup>
+                <tbody>
+                    <tr>
+                        <td class="pap-firma">FIRMA EMPRESA</td>
+                        <td class="pap-hueco"/>
+                        <td class="pap-firma">FIRMA TRABAJADOR</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!--
+            El pie va con estilos EN LINEA a proposito. Odoo saca el `div.footer`
+            del documento y se lo entrega a wkhtmltopdf como un HTML aparte, asi
+            que el `<style>` de arriba —que vive dentro del `div.article`— no
+            viaja con el. Una clase aca se pierde en silencio: el pie sale, pero
+            en negro, al doble de tamanio y alineado a la izquierda.
+        -->
+        <div class="footer">
+            <div style="text-align: center; font-size: 7pt; color: #808080;
+                        font-family: 'Carlito', 'Calibri', 'Liberation Sans', Arial, sans-serif;">
+                Comprobante de Feriado Legal · Documento controlado — Gestión de Personas
+            </div>
+        </div>
+    </template>
+
+</odoo>
