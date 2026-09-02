@@ -24,6 +24,29 @@
                         title="Descargar el Comprobante de Feriado Legal en PDF"
                         invisible="not puede_imprimir_papeleta"/>
             </xpath>
+            <!-- El folio queda a la vista al lado de la duracion: es el numero
+                 con el que el comprobante entro al talonario, y RRHH lo necesita
+                 para responder "que papeleta le dimos". Solo aparece cuando ya
+                 se emitio; antes de imprimir no hay folio que mostrar. -->
+            <xpath expr="//field[@name='duration_display']" position="after">
+                <field name="papeleta_folio" invisible="not papeleta_folio"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!--
+        En la lista va como columna opcional y apagada: el talonario se revisa
+        de vez en cuando —para ver hasta que numero se emitio— y no tiene por
+        que ocupar ancho en el dia a dia. Se prende desde el boton de columnas.
+    -->
+    <record id="hr_leave_view_tree_papeleta" model="ir.ui.view">
+        <field name="name">hr.leave.view.list.papeleta.feriado</field>
+        <field name="model">hr.leave</field>
+        <field name="inherit_id" ref="hr_holidays.hr_leave_view_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='duration_display']" position="after">
+                <field name="papeleta_folio" optional="hidden"/>
+            </xpath>
         </field>
     </record>
 

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        EL `noupdate` NO ES DECORATIVO. Sin el, cada actualizacion del modulo
+        vuelve a escribir este registro con `number_next` = 1 y el correlativo
+        REEMPIEZA: la papeleta 47 se emitiria como la 1. Con `noupdate="1"`
+        Odoo crea el registro una sola vez y despues no lo toca nunca mas, asi
+        que el numero que deje la empresa es el que manda.
+    -->
+    <data noupdate="1">
+
+        <!--
+            Una sola secuencia para todo el grupo, igual que la de pedidos de
+            venta de Odoo (`sale.order` tambien va con `company_id` vacio). Si
+            algun cliente necesita un talonario por empresa, no hay que tocar
+            codigo: alcanza con crear otra secuencia con este mismo codigo y la
+            compania puesta, porque `next_by_code` prefiere la de la compania
+            por sobre la compartida.
+
+            `no_gap` y no `standard`: el correlativo de un documento laboral no
+            puede tener huecos. Con `standard` el numero se toma de una
+            secuencia de Postgres, que NO se deshace si la impresion falla —el
+            folio quedaria gastado y el talonario saltaria del 31 al 33—. Con
+            `no_gap` el numero viaja dentro de la transaccion: si el PDF no
+            sale, el folio no se gasto. El costo es un bloqueo por emision, y
+            aca las papeletas se imprimen de a una.
+        -->
+        <record id="seq_papeleta_feriado" model="ir.sequence">
+            <field name="name">Folio de la papeleta de feriado</field>
+            <field name="code">sd.hr.papeleta.feriado</field>
+            <field name="implementation">no_gap</field>
+            <field name="prefix"></field>
+            <field name="suffix"></field>
+            <field name="padding">1</field>
+            <field name="number_next">1</field>
+            <field name="number_increment">1</field>
+            <field name="use_date_range" eval="False"/>
+            <field name="company_id" eval="False"/>
+        </record>
+
+    </data>
+
+</odoo>

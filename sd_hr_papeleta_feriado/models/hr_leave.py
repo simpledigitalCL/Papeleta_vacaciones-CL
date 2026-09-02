@@ -23,6 +23,12 @@ from odoo.exceptions import UserError
 #: feriado que no existe.
 ESTADOS_IMPRIMIBLES = ("validate",)
 
+#: Codigo de la `ir.sequence` que lleva el correlativo de folios. El talonario
+#: se define en Tiempo personal -> Configuracion -> Folio de la papeleta, y el
+#: modulo lo instala arrancando en 1: la empresa que ya venia numerando a mano
+#: pone ahi el numero que sigue.
+CODIGO_FOLIO = "sd.hr.papeleta.feriado"
+
 #: Un texto que solo tiene puntuacion es un relleno que alguien escribio para
 #: poder guardar el formulario (".-" es el que aparece en la base de Bokato), no
 #: una observacion. Imprimirlo ensucia el documento.
@@ -99,6 +105,17 @@ def recortar(valor, largo=LARGO_OBSERVACIONES):
 class HrLeave(models.Model):
     _inherit = "hr.leave"
 
+    papeleta_folio = fields.Char(
+        string="Folio de la papeleta",
+        copy=False,
+        readonly=True,
+        index="btree_not_null",
+        help="Numero del comprobante en el talonario. Se toma del correlativo "
+             "la primera vez que se imprime la papeleta y despues no cambia: "
+             "una reimpresion sale con el mismo numero que el papel que el "
+             "trabajador ya firmo.",
+    )
+
     puede_imprimir_papeleta = fields.Boolean(
         string="Papeleta disponible",
         compute="_compute_puede_imprimir_papeleta",
@@ -121,8 +138,57 @@ class HrLeave(models.Model):
                 "La papeleta se emite sobre un feriado ya aprobado. "
                 "Esta solicitud todavia no lo esta."
             ))
+        # Se toma aca ademas de en el armado de los datos para que un
+        # talonario sin configurar se avise en pantalla, antes de la descarga, y
+        # no como un "error al imprimir" ya dentro del PDF.
+        imprimibles._papeleta_asignar_folio()
         reporte = self.env.ref("sd_hr_papeleta_feriado.action_report_papeleta_feriado")
         return reporte.report_action(imprimibles)
+
+    # ------------------------------------------------------------------
+    # El folio
+    # ------------------------------------------------------------------
+    def _papeleta_compania(self):
+        """La compania del documento: la que EMPLEA, no la de quien imprime.
+
+        La papeleta la emite el empleador, asi que tanto los datos del membrete
+        como el talonario del que sale el folio se resuelven por la compania del
+        empleado. En un grupo con dos empresas, imprimir desde una no puede
+        emitir el comprobante de la otra.
+        """
+        self.ensure_one()
+        return self.employee_id.company_id or self.company_id or self.env.company
+
+    def _papeleta_asignar_folio(self):
+        """Toma el siguiente folio del correlativo, UNA sola vez por solicitud.
+
+        Se llama desde el boton y tambien desde el armado de los datos, porque
+        el menu Imprimir no pasa por el boton. Que sea idempotente es lo que
+        sostiene las dos cosas: numerar una vez sola, y que reimprimir devuelva
+        el mismo numero.
+
+        El folio se gasta al EMITIR, no al aprobar. Un feriado aprobado que
+        nadie imprimio no es una papeleta, y numerarlo dejaria en el talonario
+        folios que no existen en ningun papel.
+        """
+        secuencia = self.env["ir.sequence"].sudo()
+        # Con `sudo`: quien aprueba un feriado —el jefe directo, por ejemplo— no
+        # siempre puede escribir la solicitud ya aprobada, y el folio no es un
+        # dato suyo sino del documento. El motor de reportes ya exigio permiso
+        # de lectura sobre la solicitud antes de llegar aca.
+        for solicitud in self.sudo():
+            if solicitud.papeleta_folio:
+                continue
+            folio = secuencia.with_company(
+                solicitud._papeleta_compania()
+            ).next_by_code(CODIGO_FOLIO)
+            if not folio:
+                raise UserError(_(
+                    "No hay un correlativo de folios para la papeleta. "
+                    "Se configura en Tiempo personal / Configuracion / "
+                    "Folio de la papeleta."
+                ))
+            solicitud.papeleta_folio = folio
 
     # ------------------------------------------------------------------
     # Los datos del documento
@@ -200,8 +266,9 @@ class HrLeave(models.Model):
         """
         self.ensure_one()
         solicitud = self.sudo()
+        solicitud._papeleta_asignar_folio()
         empleado = solicitud.employee_id
-        compania = empleado.company_id or solicitud.company_id or self.env.company
+        compania = solicitud._papeleta_compania()
         socio = compania.partner_id
 
         inicio = solicitud.request_date_from
@@ -228,7 +295,7 @@ class HrLeave(models.Model):
             "empresa_giro": giro,
             "emision": formatear_fecha(hoy),
             "pagina": _("1 de 1"),
-            "folio": str(solicitud.id),
+            "folio": solicitud.papeleta_folio or "",
             # El anio identifica el feriado, no la impresion: una papeleta
             # reemitida en enero sigue perteneciendo al feriado que ampara.
             "anio": (inicio or hoy).strftime("%Y"),
