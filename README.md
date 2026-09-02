@@ -11,7 +11,7 @@ de firma digital, no envía nada por correo y no espera a nadie.
 | | |
 |---|---|
 | Módulo | `sd_hr_papeleta_feriado` |
-| Versión | `18.0.1.0.0` |
+| Versión | `18.0.1.1.0` |
 | Depende de | `hr_holidays` |
 | Licencia | LGPL-3 |
 
@@ -34,6 +34,60 @@ un feriado que no existe. Para relajarlo, `ESTADOS_IMPRIMIBLES` en
 
 ---
 
+## El folio
+
+Cada papeleta sale con un **número correlativo propio**, igual que un pedido de
+venta de Odoo: un talonario (`ir.sequence`, código `sd.hr.papeleta.feriado`) que
+avanza de a uno.
+
+### Poner el número de arranque
+
+*Tiempo personal → Configuración → **Folio de la papeleta*** → campo **Siguiente
+número**.
+
+Una empresa que venía numerando a mano y va en la 30 pone ahí un `31`, y de ahí
+en adelante el correlativo avanza solo. El menú pide permisos de *Ajustes*
+porque escribir secuencias está reservado a ese grupo en el propio Odoo: abrirlo
+al responsable de RRHH significaría darle escritura sobre **todas** las
+secuencias de la base —las de facturas y pedidos incluidas—, que es mucho más de
+lo que este módulo tiene derecho a repartir.
+
+### El folio se gasta al emitir, no al aprobar
+
+El número se toma la **primera vez que se imprime** la papeleta y queda guardado
+en la solicitud (`papeleta_folio`, visible junto a la duración y como columna
+opcional en la lista). Tres consecuencias buscadas:
+
+* **Reimprimir no gasta otro folio.** El papel que el trabajador firmó y el que
+  se reimprime en enero llevan el mismo número.
+* **Un feriado aprobado que nadie imprimió no consume número.** Numerar al
+  aprobar dejaría en el talonario folios que no existen en ningún papel.
+* **El talonario no tiene huecos.** La secuencia es `no_gap` y no `standard`: el
+  número viaja dentro de la transacción, así que si la impresión falla el folio
+  no se gastó. `standard` toma el número de una secuencia de PostgreSQL, que no
+  se deshace, y el talonario saltaría del 31 al 33. El costo de `no_gap` es un
+  bloqueo por emisión, y acá las papeletas se imprimen de a una.
+
+El nombre del archivo PDF también lleva el folio (`Papeleta Feriado - Nombre -
+31.pdf`), para poder cruzar lo guardado con el talonario.
+
+### Un talonario para todo el grupo
+
+La secuencia se instala con la compañía vacía, igual que la de pedidos de venta:
+un solo correlativo aunque la base tenga varias empresas. Si un cliente necesita
+un talonario **por empresa**, no hay que tocar código: alcanza con crear otra
+secuencia con el mismo código y la compañía puesta, porque `next_by_code`
+prefiere la de la compañía por sobre la compartida. El módulo resuelve la
+compañía por la del **empleado** —la que emplea, no la de quien imprime—, así que
+en un grupo de dos empresas imprimir desde una no emite el comprobante de la
+otra.
+
+> **Al actualizar el módulo el correlativo no se reinicia.** El registro de la
+> secuencia va dentro de un `<data noupdate="1">`. Sin eso, cada actualización
+> reescribiría `number_next` en 1 y la papeleta 47 saldría como la 1.
+
+---
+
 ## De dónde sale cada dato
 
 | Campo del comprobante | Origen |
@@ -41,7 +95,7 @@ un feriado que no existe. Para relajarlo, `ESTADOS_IMPRIMIBLES` en
 | Empresa, R.U.T., dirección | `employee_id.company_id` (`name`, `vat`, `street`, `street2`, `city`) |
 | Giro | `company_id.partner_id.l10n_cl_activity_description` |
 | Fecha de emisión | El día de hoy, en la zona horaria de quien imprime |
-| N° … / año | El **ID de la solicitud**, y el año de la fecha de inicio del feriado |
+| N° … / año | El **folio correlativo**, y el año de la fecha de inicio del feriado |
 | Nombre del trabajador | `employee_id.name` |
 | RUT | `employee_id.identification_id` |
 | Cargo | `employee_id.job_title`, y si está vacío el nombre del puesto |
@@ -151,15 +205,18 @@ Después, instalar el módulo desde *Aplicaciones* en el build.
 ```
 sd_hr_papeleta_feriado/
 ├── __manifest__.py
+├── data/
+│   └── ir_sequence_data.xml               # el talonario de folios
 ├── models/
-│   └── hr_leave.py                        # armado y formato de los datos
+│   └── hr_leave.py                        # folio, armado y formato de los datos
 ├── report/
 │   ├── hr_leave_papeleta.py               # parser del reporte
 │   ├── hr_leave_papeleta_paperformat.xml  # Carta con los márgenes del modelo
 │   ├── hr_leave_papeleta_report.xml       # ir.actions.report
 │   └── hr_leave_papeleta_templates.xml    # QWeb
 └── views/
-    └── hr_leave_views.xml                 # el botón en la cabecera
+    ├── hr_leave_views.xml                 # el botón, el folio en la ficha y en la lista
+    └── ir_sequence_views.xml              # el menú donde se fija el correlativo
 ```
 
 Todo el armado del documento vive en `models/hr_leave.py` y la plantilla se

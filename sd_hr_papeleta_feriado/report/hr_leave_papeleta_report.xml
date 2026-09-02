@@ -13,7 +13,11 @@
         <field name="report_type">qweb-pdf</field>
         <field name="report_name">sd_hr_papeleta_feriado.report_papeleta_feriado</field>
         <field name="report_file">sd_hr_papeleta_feriado.report_papeleta_feriado</field>
-        <field name="print_report_name">'Papeleta Feriado - %s - %s' % ((object.employee_id.name or 'sin trabajador').replace('/', '-'), object.id)</field>
+        <!-- El folio y no el id: el archivo que queda guardado tiene que
+             poder cruzarse con el talonario. `or object.id` es el rescate para
+             una solicitud que todavia no tomo folio, que no deberia pasar
+             porque el armado lo asigna antes de renderizar. -->
+        <field name="print_report_name">'Papeleta Feriado - %s - %s' % ((object.employee_id.name or 'sin trabajador').replace('/', '-'), object.papeleta_folio or object.id)</field>
         <field name="binding_model_id" ref="hr_holidays.model_hr_leave"/>
         <field name="binding_type">report</field>
         <field name="paperformat_id" ref="paperformat_papeleta_feriado"/>

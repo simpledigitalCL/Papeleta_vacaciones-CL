@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     "name": "Papeleta de Feriado Legal (Chile)",
-    "version": "18.0.1.0.0",
+    "version": "18.0.1.1.0",
     "category": "Human Resources",
     "summary": "Comprobante de feriado legal en PDF, con los datos ya completos, "
                "descargable desde la solicitud de tiempo personal",
@@ -26,6 +26,11 @@
           Personas.
         * Boton en la cabecera del formulario de tiempo personal, visible
           cuando la solicitud esta aprobada.
+        * Folio correlativo propio, como el de un pedido de venta: el numero se
+          toma del talonario la primera vez que se imprime la papeleta y queda
+          guardado en la solicitud, asi que reimprimirla no gasta otro. El
+          numero de arranque se define en Tiempo personal / Configuracion /
+          Folio de la papeleta.
         * Entrada en el menu Imprimir, que tambien permite emitir varias
           papeletas de una (una hoja por solicitud).
 
@@ -40,6 +45,8 @@
         * Dias progresivos: `l10n_cl_progressive_vacation_days` del empleado,
           si la localizacion chilena de RRHH esta instalada.
         * Periodo de vacaciones: el `display_name` de la solicitud.
+        * Folio: el correlativo `sd.hr.papeleta.feriado`, guardado en la
+          solicitud al emitirla.
         * Observaciones: la nota de la solicitud (`name`).
     """,
     "author": "SimpleDigital.cl",
@@ -49,10 +56,12 @@
         "hr_holidays",
     ],
     "data": [
+        "data/ir_sequence_data.xml",
         "report/hr_leave_papeleta_paperformat.xml",
         "report/hr_leave_papeleta_templates.xml",
         "report/hr_leave_papeleta_report.xml",
         "views/hr_leave_views.xml",
+        "views/ir_sequence_views.xml",
     ],
     "installable": True,
     "application": False,
