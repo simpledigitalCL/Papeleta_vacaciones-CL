@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     "name": "Papeleta de Feriado Legal (Chile)",
-    "version": "18.0.1.1.0",
+    "version": "18.0.1.2.0",
     "category": "Human Resources",
     "summary": "Comprobante de feriado legal en PDF, con los datos ya completos, "
                "descargable desde la solicitud de tiempo personal",
@@ -28,9 +28,11 @@
           cuando la solicitud esta aprobada.
         * Folio correlativo propio, como el de un pedido de venta: el numero se
           toma del talonario la primera vez que se imprime la papeleta y queda
-          guardado en la solicitud, asi que reimprimirla no gasta otro. El
-          numero de arranque se define en Tiempo personal / Configuracion /
-          Folio de la papeleta.
+          guardado en la solicitud, asi que reimprimirla no gasta otro.
+        * Un talonario POR EMPRESA, creado solo al instalar y al dar de alta una
+          compania nueva. La papeleta la emite el empleador, y dos empleadores
+          no comparten correlativo. El numero de arranque de cada uno se define
+          en Tiempo personal / Configuracion / Folio de la papeleta.
         * Entrada en el menu Imprimir, que tambien permite emitir varias
           papeletas de una (una hoja por solicitud).
 
@@ -45,8 +47,12 @@
         * Dias progresivos: `l10n_cl_progressive_vacation_days` del empleado,
           si la localizacion chilena de RRHH esta instalada.
         * Periodo de vacaciones: el `display_name` de la solicitud.
-        * Folio: el correlativo `sd.hr.papeleta.feriado`, guardado en la
-          solicitud al emitirla.
+        * Folio: el correlativo `sd.hr.papeleta.feriado` de la empresa del
+          empleado, guardado en la solicitud al emitirla.
+
+        Nada del documento esta escrito a mano: el membrete —razon social, RUT,
+        direccion y giro— sale de la compania del empleado, asi que el modulo
+        sirve tal cual en cualquier cliente.
         * Observaciones: la nota de la solicitud (`name`).
     """,
     "author": "SimpleDigital.cl",
@@ -56,13 +62,13 @@
         "hr_holidays",
     ],
     "data": [
-        "data/ir_sequence_data.xml",
         "report/hr_leave_papeleta_paperformat.xml",
         "report/hr_leave_papeleta_templates.xml",
         "report/hr_leave_papeleta_report.xml",
         "views/hr_leave_views.xml",
         "views/ir_sequence_views.xml",
     ],
+    "post_init_hook": "post_init_hook",
     "installable": True,
     "application": False,
     "auto_install": False,

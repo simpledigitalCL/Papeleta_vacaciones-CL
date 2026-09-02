@@ -2,33 +2,55 @@
 <odoo>
 
     <!--
+        La lista propia existe para dos cosas que la de Odoo no da: que se vea
+        DE QUE EMPRESA es cada talonario —hay uno por compania— y que el numero
+        se pueda cambiar ahi mismo, sin entrar al registro. Es la operacion
+        entera que este menu tiene que resolver.
+    -->
+    <record id="view_secuencia_folio_papeleta_list" model="ir.ui.view">
+        <field name="name">ir.sequence.list.folio.papeleta</field>
+        <field name="model">ir.sequence</field>
+        <field name="arch" type="xml">
+            <list editable="bottom" create="false">
+                <field name="company_id"/>
+                <field name="name"/>
+                <field name="number_next_actual" string="Siguiente número"/>
+            </list>
+        </field>
+    </record>
+
+    <!--
         El talonario, donde la empresa lo pueda ver. Odoo esconde las secuencias
         en Ajustes / Tecnico, que exige modo desarrollador: una empresa que
         viene numerando a mano y necesita decir "vamos en la 30, la que sigue es
-        la 31" no tiene por que pasar por ahi. Esta accion muestra SOLO el
-        correlativo de la papeleta, y el campo a tocar es "Siguiente numero".
+        la 31" no tiene por que pasar por ahi.
 
         Va con `groups="base.group_system"` porque escribir `ir.sequence` esta
         reservado a Ajustes en el propio Odoo (el responsable de RRHH tiene
         lectura, no escritura). Abrirlo mas exigiria dar permiso de escritura
         sobre TODAS las secuencias —las de facturas y pedidos incluidas—, que es
         mucho mas de lo que este modulo tiene derecho a repartir.
+
+        Sin boton de crear: los talonarios los abre el modulo, uno por empresa,
+        al instalarse y al nacer una compania nueva. Una fila hecha a mano con
+        el codigo mal escrito seria un talonario que nadie usa y que igual
+        aparece en la lista.
     -->
     <record id="action_secuencia_folio_papeleta" model="ir.actions.act_window">
         <field name="name">Folio de la papeleta</field>
         <field name="res_model">ir.sequence</field>
         <field name="view_mode">list,form</field>
+        <field name="view_id" ref="view_secuencia_folio_papeleta_list"/>
         <field name="domain">[('code', '=', 'sd.hr.papeleta.feriado')]</field>
-        <field name="context">{'default_code': 'sd.hr.papeleta.feriado'}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
                 Aca se define el numero con el que sale la proxima papeleta.
             </p>
             <p>
-                Si la empresa venia llevando el talonario a mano, poner en
-                <b>Siguiente numero</b> el folio que sigue al ultimo emitido.
-                De ahi en adelante cada papeleta impresa toma el suyo y avanza
-                sola.
+                Hay un talonario por empresa. Si alguna venia llevandolo a mano,
+                poner en <b>Siguiente numero</b> el folio que sigue al ultimo
+                emitido; de ahi en adelante cada papeleta impresa toma el suyo y
+                avanza sola.
             </p>
         </field>
     </record>

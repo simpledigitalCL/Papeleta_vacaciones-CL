@@ -23,10 +23,11 @@ from odoo.exceptions import UserError
 #: feriado que no existe.
 ESTADOS_IMPRIMIBLES = ("validate",)
 
-#: Codigo de la `ir.sequence` que lleva el correlativo de folios. El talonario
-#: se define en Tiempo personal -> Configuracion -> Folio de la papeleta, y el
-#: modulo lo instala arrancando en 1: la empresa que ya venia numerando a mano
-#: pone ahi el numero que sigue.
+#: Codigo de la `ir.sequence` que lleva el correlativo de folios. Hay UNA por
+#: empresa —la papeleta la emite el empleador, y dos empleadores no comparten
+#: talonario—, creadas por `res.company` y visibles en Tiempo personal ->
+#: Configuracion -> Folio de la papeleta. Todas arrancan en 1: la empresa que ya
+#: venia numerando a mano pone ahi el numero que sigue.
 CODIGO_FOLIO = "sd.hr.papeleta.feriado"
 
 #: Un texto que solo tiene puntuacion es un relleno que alguien escribio para
@@ -170,8 +171,10 @@ class HrLeave(models.Model):
         El folio se gasta al EMITIR, no al aprobar. Un feriado aprobado que
         nadie imprimio no es una papeleta, y numerarlo dejaria en el talonario
         folios que no existen en ningun papel.
+
+        Cada empresa numera aparte: la solicitud de un empleado de la empresa B
+        toma el folio del talonario de B aunque la imprima alguien de A.
         """
-        secuencia = self.env["ir.sequence"].sudo()
         # Con `sudo`: quien aprueba un feriado —el jefe directo, por ejemplo— no
         # siempre puede escribir la solicitud ya aprobada, y el folio no es un
         # dato suyo sino del documento. El motor de reportes ya exigio permiso
@@ -179,16 +182,13 @@ class HrLeave(models.Model):
         for solicitud in self.sudo():
             if solicitud.papeleta_folio:
                 continue
-            folio = secuencia.with_company(
-                solicitud._papeleta_compania()
-            ).next_by_code(CODIGO_FOLIO)
-            if not folio:
-                raise UserError(_(
-                    "No hay un correlativo de folios para la papeleta. "
-                    "Se configura en Tiempo personal / Configuracion / "
-                    "Folio de la papeleta."
-                ))
-            solicitud.papeleta_folio = folio
+            # El talonario se pide por id y no por codigo: `next_by_code`
+            # resolveria la empresa por la del USUARIO que imprime, y la
+            # papeleta la numera la que EMPLEA. `_papeleta_secuencia` ademas lo
+            # crea si falta, asi que una empresa nacida por importacion o por un
+            # camino que no pasa por `create` tampoco se queda sin folios.
+            secuencia = solicitud._papeleta_compania()._papeleta_secuencia()
+            solicitud.papeleta_folio = secuencia.next_by_id()
 
     # ------------------------------------------------------------------
     # Los datos del documento

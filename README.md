@@ -11,7 +11,7 @@ de firma digital, no envía nada por correo y no espera a nadie.
 | | |
 |---|---|
 | Módulo | `sd_hr_papeleta_feriado` |
-| Versión | `18.0.1.1.0` |
+| Versión | `18.0.1.2.0` |
 | Depende de | `hr_holidays` |
 | Licencia | LGPL-3 |
 
@@ -40,9 +40,17 @@ Cada papeleta sale con un **número correlativo propio**, igual que un pedido de
 venta de Odoo: un talonario (`ir.sequence`, código `sd.hr.papeleta.feriado`) que
 avanza de a uno.
 
+Hay **un talonario por empresa**. La papeleta la emite el empleador, y dos
+empleadores no comparten correlativo, igual que no comparten un libro de
+remuneraciones. Los abre el propio módulo: uno por compañía al instalarse, y uno
+más cada vez que se da de alta una compañía nueva. La solicitud de un empleado de
+la empresa B toma el folio de B aunque la imprima alguien de A — la compañía se
+resuelve por la del **empleado**, no por la de quien aprieta el botón.
+
 ### Poner el número de arranque
 
-*Tiempo personal → Configuración → **Folio de la papeleta*** → campo **Siguiente
+*Tiempo personal → Configuración → **Folio de la papeleta***. Sale una fila por
+empresa, y el número se edita ahí mismo en la lista: columna **Siguiente
 número**.
 
 Una empresa que venía numerando a mano y va en la 30 pone ahí un `31`, y de ahí
@@ -71,20 +79,30 @@ opcional en la lista). Tres consecuencias buscadas:
 El nombre del archivo PDF también lleva el folio (`Papeleta Feriado - Nombre -
 31.pdf`), para poder cruzar lo guardado con el talonario.
 
-### Un talonario para todo el grupo
+### Por qué los talonarios no vienen en un archivo de datos
 
-La secuencia se instala con la compañía vacía, igual que la de pedidos de venta:
-un solo correlativo aunque la base tenga varias empresas. Si un cliente necesita
-un talonario **por empresa**, no hay que tocar código: alcanza con crear otra
-secuencia con el mismo código y la compañía puesta, porque `next_by_code`
-prefiere la de la compañía por sobre la compartida. El módulo resuelve la
-compañía por la del **empleado** —la que emplea, no la de quien imprime—, así que
-en un grupo de dos empresas imprimir desde una no emite el comprobante de la
-otra.
+Se crean desde Python —un `post_init_hook` al instalar y un `create` en
+`res.company` para las que nazcan después— y no como registros de datos. Un
+registro de datos sólo puede nombrar compañías que existían cuando se escribió,
+y este módulo está pensado para instalarse en bases ajenas, donde no se sabe ni
+cuántas empresas hay ni cómo se llaman.
 
-> **Al actualizar el módulo el correlativo no se reinicia.** El registro de la
-> secuencia va dentro de un `<data noupdate="1">`. Sin eso, cada actualización
-> reescribiría `number_next` en 1 y la papeleta 47 saldría como la 1.
+`_papeleta_secuencia()` busca y crea, así que es idempotente: lo llaman el hook,
+el alta de compañía y la emisión misma, sin coordinarse. Una empresa que haya
+entrado por un camino que no pasa por `create` —una importación, por ejemplo—
+tampoco se queda sin folios.
+
+El folio se pide con `next_by_id()` sobre el talonario de la empresa y **no** con
+`next_by_code()`: este último resuelve la compañía por la del *usuario* que
+imprime, y la papeleta la numera la que **emplea**.
+
+> **Al actualizar, ningún correlativo se reinicia.** Los talonarios no son
+> registros de datos, así que una actualización no los reescribe. La migración
+> `18.0.1.2.0` convierte el talonario compartido de `18.0.1.1.0` en uno por
+> empresa, y **arranca a todas en el número al que iba el compartido**, no en 1:
+> bajo el talonario viejo cualquiera pudo haberse llevado un folio, y reiniciar
+> haría que la primera papeleta de una empresa repitiera un número ya impreso en
+> otra.
 
 ---
 
@@ -205,10 +223,12 @@ Después, instalar el módulo desde *Aplicaciones* en el build.
 ```
 sd_hr_papeleta_feriado/
 ├── __manifest__.py
-├── data/
-│   └── ir_sequence_data.xml               # el talonario de folios
+├── hooks.py                               # abre los talonarios al instalar
+├── migrations/
+│   └── 18.0.1.2.0/post-migrate.py         # del talonario compartido a uno por empresa
 ├── models/
-│   └── hr_leave.py                        # folio, armado y formato de los datos
+│   ├── hr_leave.py                        # folio, armado y formato de los datos
+│   └── res_company.py                     # el talonario de cada empresa
 ├── report/
 │   ├── hr_leave_papeleta.py               # parser del reporte
 │   ├── hr_leave_papeleta_paperformat.xml  # Carta con los márgenes del modelo
@@ -218,6 +238,10 @@ sd_hr_papeleta_feriado/
     ├── hr_leave_views.xml                 # el botón, el folio en la ficha y en la lista
     └── ir_sequence_views.xml              # el menú donde se fija el correlativo
 ```
+
+Nada del documento está escrito a mano: el membrete —razón social, RUT, dirección
+y giro— sale de la compañía del empleado, así que el módulo se instala tal cual en
+cualquier cliente.
 
 Todo el armado del documento vive en `models/hr_leave.py` y la plantilla se
 limita a pintar un diccionario de cadenas ya formateadas. Los formatos son
