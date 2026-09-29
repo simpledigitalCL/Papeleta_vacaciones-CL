@@ -11,7 +11,7 @@ de firma digital, no envía nada por correo y no espera a nadie.
 | | |
 |---|---|
 | Módulo | `sd_hr_papeleta_feriado` |
-| Versión | `18.0.1.2.0` |
+| Versión | `18.0.1.3.0` |
 | Depende de | `hr_holidays` |
 | Licencia | LGPL-3 |
 
@@ -121,7 +121,7 @@ imprime, y la papeleta la numera la que **emplea**.
 | Días hábiles | `number_of_days` — los días que Odoo imputó a la solicitud |
 | Días inhábiles | Días corridos del período **menos** los hábiles |
 | Días progresivos | `employee_id.l10n_cl_progressive_vacation_days` |
-| Días disponibles | Asignaciones validadas menos ausencias validadas del mismo tipo, sin contar esta |
+| Días disponibles | Asignaciones validadas menos ausencias validadas del mismo tipo, **esta incluida** |
 | Período de vacaciones | `display_name` — el nombre con que Odoo identifica la solicitud |
 | Observaciones | `name` — la nota de la solicitud |
 
@@ -143,7 +143,14 @@ campo por dos razones: lo aporta un módulo que no todos los clientes tienen, y
 donde está sólo lo llena para el tipo llamado exactamente
 `Vacaciones Legales Chile`.
 
-Es el saldo **sin contar esta solicitud** — el mismo criterio que el formulario.
+Es el saldo **descontando esta solicitud**: la papeleta ampara el feriado que se
+concede, así que el recuadro dice lo que le queda al trabajador después de los
+días que pide este mismo documento. La solicitud no se excluye de la búsqueda de
+ausencias a propósito — sólo se emite en `validate`, así que ya está aprobada y
+descontarla es justamente lo que se pide.
+
+Sin asignaciones cargadas, o cuando las ausencias superan los días asignados, el
+recuadro dice **0**: un comprobante no imprime un saldo en contra.
 
 ### El período repite lo que dice la ficha, a propósito
 

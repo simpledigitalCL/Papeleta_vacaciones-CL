@@ -205,15 +205,19 @@ class HrLeave(models.Model):
         ], order="date_from asc")
 
     def _papeleta_dias_disponibles(self):
-        """Saldo del tipo de ausencia SIN contar esta solicitud.
+        """Saldo del tipo de ausencia DESPUES de esta solicitud.
 
-        Es a proposito la misma cuenta que muestra el formulario en «Dias
-        Disponibles en Asignacion»: si el papel y la pantalla no dicen el mismo
-        numero, el papel pierde.
+        La papeleta ampara el feriado que se concede, asi que el recuadro dice
+        el saldo que le queda al trabajador una vez descontados los dias que
+        pide este mismo documento: es lo que RRHH espera leer al firmarlo.
 
-        Se recalcula aca en vez de leer ese campo porque lo aporta el modulo de
-        nomina, que no todos los clientes tienen — y donde esta, solo lo llena
-        para el tipo llamado exactamente «Vacaciones Legales Chile».
+        Se recalcula aca en vez de leer un campo del modulo de nomina, que no
+        todos los clientes tienen — y donde esta, solo lo llena para el tipo
+        llamado exactamente «Vacaciones Legales Chile».
+
+        La solicitud NO se excluye de la busqueda de ausencias a proposito: la
+        papeleta solo se emite en `validate`, asi que esta ausencia ya esta
+        aprobada y descontarla es justamente lo que se pide.
         """
         self.ensure_one()
         asignaciones = self._papeleta_asignaciones()
@@ -223,9 +227,11 @@ class HrLeave(models.Model):
             ("employee_id", "=", self.employee_id.id),
             ("holiday_status_id", "=", self.holiday_status_id.id),
             ("state", "=", "validate"),
-            ("id", "!=", self.id),
         ])
-        return sum(asignaciones.mapped("number_of_days")) - sum(tomadas.mapped("number_of_days"))
+        saldo = sum(asignaciones.mapped("number_of_days")) - sum(tomadas.mapped("number_of_days"))
+        # Un comprobante no imprime un saldo en contra: sin asignaciones
+        # cargadas, o con mas ausencias que dias asignados, el recuadro dice 0.
+        return max(saldo, 0.0)
 
     def _papeleta_periodo(self):
         """El periodo, tal como Odoo nombra la solicitud.

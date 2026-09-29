@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     "name": "Papeleta de Feriado Legal (Chile)",
-    "version": "18.0.1.2.0",
+    "version": "18.0.1.3.0",
     "category": "Human Resources",
     "summary": "Comprobante de feriado legal en PDF, con los datos ya completos, "
                "descargable desde la solicitud de tiempo personal",
@@ -43,7 +43,8 @@
         * Dias habiles: los dias imputados a la solicitud (`number_of_days`).
         * Dias inhabiles: dias corridos del periodo menos los habiles.
         * Dias disponibles: asignaciones validadas menos ausencias validadas
-          del mismo tipo, sin contar esta solicitud.
+          del mismo tipo, ESTA SOLICITUD INCLUIDA: el saldo que le queda al
+          trabajador despues del feriado que ampara la papeleta.
         * Dias progresivos: `l10n_cl_progressive_vacation_days` del empleado,
           si la localizacion chilena de RRHH esta instalada.
         * Periodo de vacaciones: el `display_name` de la solicitud.
